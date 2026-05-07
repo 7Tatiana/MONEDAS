@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sistema de Conteo y Clasificación de Monedas Peruanas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="resultados_embedded.js"></script>
+  <style>
+    :root {
+      --bg: #08090d;
+      --panel: #11131a;
+      --panel-2: #171a23;
+      --text: #f5efe0;
+      --muted: #a8a18f;
+      --gold: #e0b84e;
+      --gold-2: #ffe08a;
+      --line: rgba(224, 184, 78, .24);
+      --green: #41d17b;
+      --yellow: #f2c94c;
+      --red: #ff5c73;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(224, 184, 78, .12), transparent 28rem),
+        linear-gradient(180deg, #08090d 0%, #101116 48%, #08090d 100%);
+      color: var(--text);
+      font-family: "Space Mono", monospace;
+    }
+    header, section { width: min(1180px, calc(100% - 32px)); margin: 0 auto; }
+    header { min-height: 88vh; display: grid; align-content: center; gap: 28px; }
+    h1, h2, h3 { font-family: "Syne", sans-serif; margin: 0; letter-spacing: 0; }
+    h1 { font-size: clamp(2.8rem, 8vw, 7.5rem); line-height: .9; max-width: 1050px; }
+    h2 { font-size: clamp(1.6rem, 3vw, 2.6rem); margin-bottom: 18px; }
+    h3 { font-size: 1rem; }
+    p { color: var(--muted); line-height: 1.7; max-width: 780px; }
+    .hero-copy { font-size: 1.05rem; }
+    .hero-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; max-width: 760px; }
+    .hero-chip, .metric, .toolbar, .dropzone, .tech-step {
+      background: rgba(17, 19, 26, .78);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, .24);
+    }
+    .hero-chip { padding: 14px; min-height: 78px; display: grid; align-content: center; }
+    .hero-chip strong { color: var(--gold-2); font-size: 1.3rem; }
+    section { padding: 58px 0; }
+    .toolbar { padding: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
+    button, .file-button {
+      border: 1px solid var(--line);
+      background: #161922;
+      color: var(--text);
+      border-radius: 8px;
+      padding: 10px 13px;
+      font-family: inherit;
+      cursor: pointer;
+    }
+    button.active, button:hover, .file-button:hover { border-color: var(--gold); color: var(--gold-2); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+    .thumb {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, .08);
+      border-radius: 8px;
+      background: var(--panel);
+      min-height: 180px;
+    }
+    .thumb img { width: 100%; height: 180px; object-fit: cover; display: block; }
+    .thumb-info {
+      position: absolute;
+      inset: auto 0 0 0;
+      padding: 12px;
+      background: linear-gradient(transparent, rgba(0,0,0,.9));
+      transform: translateY(58%);
+      transition: transform .22s ease;
+      font-size: .78rem;
+    }
+    .thumb:hover .thumb-info { transform: translateY(0); }
+    .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: rgba(17, 19, 26, .72); }
+    table { width: 100%; border-collapse: collapse; min-width: 900px; }
+    th, td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,.07); text-align: left; vertical-align: middle; }
+    th { color: var(--gold-2); font-size: .78rem; text-transform: uppercase; position: sticky; top: 0; background: #11131a; }
+    .mini { width: 120px; height: 90px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(255,255,255,.12); display: block; cursor: pointer; transition: transform .2s, box-shadow .2s; }
+    .mini:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(224, 184, 78, .4); }
+    .coins { display: flex; flex-wrap: wrap; gap: 6px; max-width: 250px; }
+    .coin-pill { border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; color: var(--gold-2); font-size: .76rem; white-space: nowrap; }
+    .bar { width: 150px; height: 9px; border-radius: 999px; background: #272a32; overflow: hidden; }
+    .bar span { display: block; height: 100%; width: var(--w); background: var(--c); }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
+    .metric { padding: 18px; min-height: 126px; }
+    .metric .num { display: block; margin-top: 16px; font-size: 2rem; color: var(--gold-2); font-family: "Syne", sans-serif; }
+    .chart-box { grid-column: span 2; padding: 18px; background: rgba(17,19,26,.78); border: 1px solid var(--line); border-radius: 8px; min-height: 280px; }
+    .uploader-layout { display: grid; grid-template-columns: 390px 1fr; gap: 18px; align-items: start; }
+    .dropzone {
+      min-height: 260px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 24px;
+      border-style: dashed;
+    }
+    .dropzone.drag { border-color: var(--gold-2); background: rgba(224, 184, 78, .08); }
+    input[type=file] { display: none; }
+    canvas { width: 100%; background: #050609; border: 1px solid var(--line); border-radius: 8px; display: block; }
+    .upload-result { background: rgba(17,19,26,.78); border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+    .total-big { font-family: "Syne", sans-serif; font-size: clamp(2rem, 5vw, 4rem); color: var(--gold-2); margin: 10px 0; }
+    .tech { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+    .tech-step { padding: 14px; min-height: 175px; }
+    .tech-step svg { width: 100%; height: 86px; margin: 10px 0; }
+    .pulse { animation: pulse 1.8s infinite ease-in-out; transform-origin: center; }
+    @keyframes pulse { 0%,100% { opacity:.45; transform:scale(.94); } 50% { opacity:1; transform:scale(1.04); } }
+    .empty { color: var(--muted); padding: 18px; border: 1px dashed var(--line); border-radius: 8px; }
+    footer { padding: 38px 16px 54px; text-align: center; color: var(--muted); }
+    @media (max-width: 880px) {
+      header { min-height: 78vh; }
+      .hero-grid, .metrics, .uploader-layout, .tech { grid-template-columns: 1fr; }
+      .chart-box { grid-column: auto; }
+    }
+    .zoom-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.92);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+    }
+    .zoom-modal.active { display: flex; }
+    .zoom-modal img {
+      max-width: 90vw;
+      max-height: 90vh;
+      border-radius: 8px;
+      border: 2px solid var(--gold);
+      box-shadow: 0 0 40px rgba(224, 184, 78, 0.3);
+    }
+    .zoom-close {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      color: var(--gold-2);
+      font-size: 2rem;
+      cursor: pointer;
+    }
+    .pagination { display: flex; gap: 8px; justify-content: center; margin-top: 18px; flex-wrap: wrap; }
+    .pagination button {
+      padding: 8px 14px;
+      background: #161922;
+      border: 1px solid var(--line);
+      color: var(--text);
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.85rem;
+    }
+    .pagination button:hover { border-color: var(--gold); color: var(--gold-2); }
+    .pagination button.active { background: var(--gold); color: #000; border-color: var(--gold); }
+    .pagination-info { text-align: center; color: var(--muted); font-size: 0.85rem; margin-top: 10px; }
+    .process-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 14px; }
+    .process-step-card {
+      background: rgba(17, 19, 26, .78);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+    .process-step-card h3 { color: var(--gold-2); font-size: 0.9rem; margin-bottom: 10px; }
+    .process-step-card canvas { width: 100%; height: 120px; border-radius: 6px; border: 1px solid rgba(255,255,255,.1); }
+    .process-step-card p { font-size: 0.75rem; color: var(--muted); margin-top: 8px; }
+    @media (max-width: 768px) { .process-steps { grid-template-columns: repeat(2, 1fr); } }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Conteo técnico de monedas peruanas</h1>
+      <p class="hero-copy">Pipeline clásico con OpenCV: marcadores azules HSV, escala real, Hough Circle Transform, contornos, color HSV y evaluación de error. Sin redes neuronales.</p>
+    </div>
+    <div class="hero-grid">
+      <div class="hero-chip"><span>Calibración</span><strong>HSV azul</strong></div>
+      <div class="hero-chip"><span>Detección</span><strong>Hough + contornos</strong></div>
+      <div class="hero-chip"><span>Clasificación</span><strong>mm + color</strong></div>
+      <div class="hero-chip"><span>Demo</span><strong>Canvas local</strong></div>
+    </div>
+  </header>
+
+  <section>
+    <h2>Panel de Demo del Dataset</h2>
+    <div class="toolbar" id="filters">
+      <button class="active" data-filter="todos">Todos</button>
+      <button data-filter="individual">Individual</button>
+      <button data-filter="grupal">Grupal</button>
+      <button data-filter="con oclusión">Con oclusión</button>
+      <button data-filter="aumentada">Aumentada</button>
+    </div>
+    <div class="grid" id="gallery"></div>
+  </section>
+
+  <section>
+    <h2>Resultados del Sistema</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Imagen</th>
+            <th>Monedas detectadas</th>
+            <th>Total real</th>
+            <th>Total detectado</th>
+            <th>Error</th>
+            <th>Barra</th>
+          </tr>
+        </thead>
+        <tbody id="resultsBody"></tbody>
+      </table>
+    </div>
+    <div class="pagination" id="tablePagination"></div>
+    <div class="pagination-info" id="paginationInfo"></div>
+  </section>
+
+  <section>
+    <h2>Proceso de Detección (OpenCV)</h2>
+    <p style="color: var(--muted); margin-bottom: 14px;">Pipeline clásico de visión por computadora para detectar y clasificar monedas.</p>
+    <div class="process-steps">
+      <div class="process-step-card">
+        <h3>1. Escala de Grises</h3>
+        <canvas id="stepGrayscale"></canvas>
+        <p>Conversión de imagen a un canal usando fórmula de luminosidad: L = 0.299R + 0.587G + 0.114B</p>
+      </div>
+      <div class="process-step-card">
+        <h3>2. Blur (Suavizado)</h3>
+        <canvas id="stepBlur"></canvas>
+        <p>Aplicación de filtro gaussiano 7x7 para reducir ruido y detalles innecesarios.</p>
+      </div>
+      <div class="process-step-card">
+        <h3>3. Binarización</h3>
+        <canvas id="stepBinary"></canvas>
+        <p>Umbral adaptativo + Otsu para separar monedas del fondo.</p>
+      </div>
+      <div class="process-step-card">
+        <h3>4. Contornos</h3>
+        <canvas id="stepContours"></canvas>
+        <p>Detección de contornos externos y filtrado por circularidad.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Métricas Globales</h2>
+    <div class="metrics">
+      <div class="metric"><h3>Imágenes procesadas</h3><span class="num" data-count="0" id="metricImages">0</span></div>
+      <div class="metric"><h3>MAE</h3><span class="num" data-count="0" id="metricMae">S/ 0.00</span></div>
+      <div class="metric"><h3>Accuracy exacta</h3><span class="num" data-count="0" id="metricAcc">0%</span></div>
+      <div class="metric"><h3>Monedas detectadas</h3><span class="num" data-count="0" id="metricCoins">0</span></div>
+      <div class="chart-box"><canvas id="errorChart" height="160"></canvas></div>
+      <div class="chart-box"><canvas id="coinChart" height="160"></canvas></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>🆙 Subir Imagen Propia</h2>
+    <div class="uploader-layout">
+      <label class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" accept="image/*">
+        <div>
+          <h3>📷 Arrastra tu imagen aquí</h3>
+          <p>o haz clic para seleccionar una foto. El análisis ocurre en tu navegador con JavaScript puro y canvas.</p>
+          <span class="file-button">Seleccionar archivo</span>
+        </div>
+      </label>
+      <div class="upload-result">
+        <canvas id="uploadCanvas" width="900" height="620"></canvas>
+        <div class="total-big" id="uploadTotal">S/ 0.00</div>
+        <div id="uploadList" class="coins"></div>
+        <p id="uploadHint">Esperando imagen...</p>
+        <button id="downloadBtn">Descargar imagen anotada</button>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Sección Técnica</h2>
+    <div class="tech">
+      <div class="tech-step"><h3>1. Gris</h3><svg viewBox="0 0 120 80"><rect width="120" height="80" fill="#20232d"/><circle cx="60" cy="40" r="23" fill="#8d8d8d"/><circle class="pulse" cx="96" cy="14" r="5" fill="#286dff"/></svg><p>Conversión BGR a escala de grises.</p></div>
+      <div class="tech-step"><h3>2. Blur</h3><svg viewBox="0 0 120 80"><defs><filter id="b"><feGaussianBlur stdDeviation="3"/></filter></defs><rect width="120" height="80" fill="#20232d"/><circle cx="60" cy="40" r="24" fill="#c0a14c" filter="url(#b)"/></svg><p>Suavizado gaussiano para ruido.</p></div>
+      <div class="tech-step"><h3>3. Umbral</h3><svg viewBox="0 0 120 80"><rect width="120" height="80" fill="#050609"/><circle cx="60" cy="40" r="25" fill="#f5efe0"/></svg><p>Otsu y adaptativo comparados.</p></div>
+      <div class="tech-step"><h3>4. Contornos</h3><svg viewBox="0 0 120 80"><rect width="120" height="80" fill="#10131a"/><circle class="pulse" cx="60" cy="40" r="26" fill="none" stroke="#e0b84e" stroke-width="4"/><circle cx="60" cy="40" r="3" fill="#ff5c73"/></svg><p>Circularidad mínima y centroides.</p></div>
+      <div class="tech-step"><h3>5. Resultado</h3><svg viewBox="0 0 120 80"><rect width="120" height="80" fill="#10131a"/><circle cx="44" cy="38" r="18" fill="#e0b84e"/><circle cx="78" cy="38" r="18" fill="#c9ccd1"/><text x="19" y="70" fill="#ffe08a" font-size="11">TOTAL S/</text></svg><p>Clasificación y suma final.</p></div>
+    </div>
+  </section>
+
+  <footer>OpenCV clásico + Canvas API. Dataset local en photos/ y augmented/.</footer>
+
+  <div class="zoom-modal" id="zoomModal">
+    <span class="zoom-close">&times;</span>
+    <img id="zoomImage" src="" alt="Zoom">
+  </div>
+
+  <script>
+    const coinLabels = { "10cts": "10c", "50cts": "50c", "1sol": "S/1", "2soles": "S/2", "5soles": "S/5" };
+    const coinValues = { "10cts": .10, "50cts": .50, "1sol": 1, "2soles": 2, "5soles": 5 };
+    let resultados = [];
+    let currentFilter = "todos";
+    let errorChart, coinChart;
+
+    function money(n) { return `S/ ${Number(n || 0).toFixed(2)}`; }
+    function errorColor(pct) { return pct < 5 ? "var(--green)" : pct <= 15 ? "var(--yellow)" : "var(--red)"; }
+    function countCoins(r) { return Object.values(r.conteo || {}).reduce((a, b) => a + Number(b || 0), 0); }
+
+    async function loadResults() {
+      try {
+        const response = await fetch("resultados.json", { cache: "no-store" });
+        resultados = await response.json();
+      } catch (err) {
+        resultados = window.RESULTADOS_EMBEBIDOS || [];
+        if (!resultados.length) {
+          document.getElementById("gallery").innerHTML = '<div class="empty">No se pudo leer resultados.json directamente. Ejecuta python exportar_resultados.py para regenerar datos.</div>';
+        }
+      }
+      renderAll();
+    }
+
+    function filteredData() {
+      if (currentFilter === "todos") return resultados;
+      return resultados.filter(r => r.tipo_imagen === currentFilter);
+    }
+
+    function renderGallery() {
+      const gallery = document.getElementById("gallery");
+      const data = filteredData().slice(0, 80);
+      if (!data.length) {
+        gallery.innerHTML = '<div class="empty">Sin imágenes para este filtro.</div>';
+        return;
+      }
+      gallery.innerHTML = data.map(r => {
+        const coins = Object.entries(r.conteo || {}).filter(([,v]) => v).map(([k,v]) => `${coinLabels[k]} x${v}`).join(" · ") || "Sin detecciones";
+        return `<article class="thumb"><img src="${r.ruta}" alt="${r.imagen}"><div class="thumb-info"><strong>${r.imagen}</strong><br>${r.tipo_imagen}<br>${coins}<br>Real: ${money(r.total_real)}</div></article>`;
+      }).join("");
+    let tablePage = 1;
+    const TABLE_PAGE_SIZE = 10;
+
+    function renderTable() {
+      const body = document.getElementById("resultsBody");
+      const data = filteredData();
+      const totalPages = Math.ceil(data.length / TABLE_PAGE_SIZE);
+      if (tablePage > totalPages) tablePage = totalPages || 1;
+      
+      const start = (tablePage - 1) * TABLE_PAGE_SIZE;
+      const pageData = data.slice(start, start + TABLE_PAGE_SIZE);
+      
+      body.innerHTML = pageData.map(r => {
+        const coins = Object.entries(r.conteo || {}).filter(([,v]) => v).map(([k,v]) => `<span class="coin-pill">${coinLabels[k]} x${v}</span>`).join("") || '<span class="coin-pill">0</span>';
+        const pct = Number(r.error_pct || 0);
+        const width = Math.min(100, pct);
+        return `<tr>
+          <td><img class="mini" src="${r.anotada || r.ruta}" alt=""> ${r.imagen}</td>
+          <td><div class="coins">${coins}</div></td>
+          <td>${money(r.total_real)}</td>
+          <td>${money(r.total_detectado)}</td>
+          <td>${money(r.error_abs)} (${pct.toFixed(1)}%)</td>
+          <td><div class="bar"><span style="--w:${width}%;--c:${errorColor(pct)}"></span></div></td>
+        </tr>`;
+      }).join("");
+      
+      renderPagination(totalPages, data.length, start);
+    }
+
+    function renderPagination(totalPages, totalItems, start) {
+      const pagDiv = document.getElementById("tablePagination");
+      const infoDiv = document.getElementById("paginationInfo");
+      
+      if (totalPages <= 1) {
+        pagDiv.innerHTML = "";
+        infoDiv.innerHTML = `Mostrando ${totalItems} resultados`;
+        return;
+      }
+      
+      let html = "";
+      if (tablePage > 1) html += `<button onclick="goToPage(${tablePage - 1})">← Anterior</button>`;
+      
+      const startPage = Math.max(1, tablePage - 2);
+      const endPage = Math.min(totalPages, tablePage + 2);
+      
+      for (let i = startPage; i <= endPage; i++) {
+        html += `<button class="${i === tablePage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>`;
+      }
+      
+      if (tablePage < totalPages) html += `<button onclick="goToPage(${tablePage + 1})">Siguiente →</button>`;
+      
+      pagDiv.innerHTML = html;
+      infoDiv.innerHTML = `Mostrando ${start + 1}-${Math.min(start + TABLE_PAGE_SIZE, totalItems)} de ${totalItems} resultados`;
+    }
+
+    window.goToPage = function(page) {
+      tablePage = page;
+      renderTable();
+    };
+
+    function animateNumber(el, end, format) {
+      const start = performance.now();
+      function frame(now) {
+        const t = Math.min(1, (now - start) / 900);
+        const value = end * (1 - Math.pow(1 - t, 3));
+        el.textContent = format(value);
+        if (t < 1) requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function renderMetrics() {
+      const data = resultados;
+      const n = data.length;
+      const errors = data.map(r => Number(r.error_abs || 0));
+      const mae = errors.length ? errors.reduce((a,b)=>a+b,0) / errors.length : 0;
+      const acc = n ? data.filter(r => Number(r.error_abs || 0) === 0).length / n : 0;
+      const coins = data.reduce((a, r) => a + countCoins(r), 0);
+      animateNumber(document.getElementById("metricImages"), n, v => Math.round(v));
+      animateNumber(document.getElementById("metricMae"), mae, v => money(v));
+      animateNumber(document.getElementById("metricAcc"), acc * 100, v => `${v.toFixed(1)}%`);
+      animateNumber(document.getElementById("metricCoins"), coins, v => Math.round(v));
+
+      const buckets = [0, 0, 0, 0];
+      data.forEach(r => {
+        const p = Number(r.error_pct || 0);
+        if (p === 0) buckets[0]++; else if (p < 5) buckets[1]++; else if (p <= 15) buckets[2]++; else buckets[3]++;
+      });
+      const coinTotals = { "10cts":0, "50cts":0, "1sol":0, "2soles":0, "5soles":0 };
+      data.forEach(r => Object.keys(coinTotals).forEach(k => coinTotals[k] += Number((r.conteo || {})[k] || 0)));
+
+      if (errorChart) errorChart.destroy();
+      errorChart = new Chart(document.getElementById("errorChart"), {
+        type: "bar",
+        data: { labels: ["0%", "<5%", "5-15%", ">15%"], datasets: [{ label: "Distribución de error", data: buckets, backgroundColor: ["#41d17b", "#87e6a8", "#f2c94c", "#ff5c73"] }] },
+        options: { plugins: { legend: { labels: { color: "#f5efe0" } } }, scales: { x: { ticks: { color: "#a8a18f" } }, y: { ticks: { color: "#a8a18f" } } } }
+      });
+      if (coinChart) coinChart.destroy();
+      coinChart = new Chart(document.getElementById("coinChart"), {
+        type: "doughnut",
+        data: { labels: Object.keys(coinTotals).map(k => coinLabels[k]), datasets: [{ data: Object.values(coinTotals), backgroundColor: ["#b88328", "#e0b84e", "#c9ccd1", "#d2a089", "#ffe08a"] }] },
+        options: { plugins: { legend: { labels: { color: "#f5efe0" } } } }
+      });
+    }
+
+    function renderAll() { renderGallery(); renderTable(); renderMetrics(); drawProcessSteps(); }
+
+    function drawProcessSteps() {
+      const sampleImg = resultados[0];
+      if (!sampleImg || !sampleImg.ruta) return;
+      
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const w = 200, h = 120;
+        
+        const grayCanvas = document.getElementById("stepGrayscale");
+        const grayCtx = grayCanvas.getContext("2d");
+        grayCanvas.width = w; grayCanvas.height = h;
+        grayCtx.drawImage(img, 0, 0, w, h);
+        const grayData = grayCtx.getImageData(0, 0, w, h);
+        for (let i = 0; i < grayData.data.length; i += 4) {
+          const g = 0.299 * grayData.data[i] + 0.587 * grayData.data[i+1] + 0.114 * grayData.data[i+2];
+          grayData.data[i] = grayData.data[i+1] = grayData.data[i+2] = g;
+        }
+        grayCtx.putImageData(grayData, 0, 0);
+        
+        const blurCanvas = document.getElementById("stepBlur");
+        const blurCtx = blurCanvas.getContext("2d");
+        blurCanvas.width = w; blurCanvas.height = h;
+        blurCtx.filter = "blur(3px)";
+        blurCtx.drawImage(img, 0, 0, w, h);
+        
+        const binaryCanvas = document.getElementById("stepBinary");
+        const binaryCtx = binaryCanvas.getContext("2d");
+        binaryCanvas.width = w; binaryCanvas.height = h;
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = w; tempCanvas.height = h;
+        const tempCtx = tempCanvas.getContext("2d");
+        tempCtx.filter = "blur(3px)";
+        tempCtx.drawImage(img, 0, 0, w, h);
+        const tempData = tempCtx.getImageData(0, 0, w, h);
+        const grayArr = new Uint8Array(w * h);
+        for (let i = 0; i < w * h; i++) grayArr[i] = 0.299 * tempData.data[i*4] + 0.587 * tempData.data[i*4+1] + 0.114 * tempData.data[i*4+2];
+        const hist = new Array(256).fill(0);
+        for (let i = 0; i < grayArr.length; i++) hist[grayArr[i]]++;
+        let total = w * h, sum = 0;
+        for (let i = 0; i < 256; i++) sum += i * hist[i];
+        let sumB = 0, wB = 0, maxVar = 0, thresh = 128;
+        for (let t = 0; t < 256; t++) {
+          wB += hist[t];
+          if (wB === 0) continue;
+          const wF = total - wB;
+          if (wF === 0) break;
+          sumB += t * hist[t];
+          const mB = sumB / wB, mF = (sum - sumB) / wF;
+          const v = wB * wF * (mB - mF) ** 2;
+          if (v > maxVar) { maxVar = v; thresh = t; }
+        }
+        const outData = binaryCtx.createImageData(w, h);
+        for (let i = 0; i < w * h; i++) {
+          const g = grayArr[i];
+          const b = g < thresh ? 255 : 30;
+          outData.data[i*4] = outData.data[i*4+1] = outData.data[i*4+2] = b;
+          outData.data[i*4+3] = 255;
+        }
+        binaryCtx.putImageData(outData, 0, 0);
+        
+        const contoursCanvas = document.getElementById("stepContours");
+        const contoursCtx = contoursCanvas.getContext("2d");
+        contoursCanvas.width = w; contoursCanvas.height = h;
+        contoursCtx.fillStyle = "#10131a";
+        contoursCtx.fillRect(0, 0, w, h);
+        contoursCtx.strokeStyle = "#e0b84e";
+        contoursCtx.lineWidth = 1;
+        contoursCtx.drawImage(img, 0, 0, w, h);
+        const cData = contoursCtx.getImageData(0, 0, w, h);
+        for (let y = 1; y < h - 1; y++) {
+          for (let x = 1; x < w - 1; x++) {
+            const i = (y * w + x) * 4;
+            const g = cData.data[i];
+            const left = cData.data[i - 4];
+            const right = cData.data[i + 4];
+            const up = cData.data[(y - 1) * w * 4 + x * 4];
+            const down = cData.data[(y + 1) * w * 4 + x * 4];
+            if (Math.abs(g - left) > 30 || Math.abs(g - right) > 30 || Math.abs(g - up) > 30 || Math.abs(g - down) > 30) {
+              cData.data[i] = cData.data[i+1] = 224; cData.data[i+2] = 78;
+            }
+          }
+        }
+        contoursCtx.putImageData(cData, 0, 0);
+      };
+      img.src = sampleImg.ruta;
+    }
+    document.getElementById("filters").addEventListener("click", e => {
+      if (!e.target.matches("button")) return;
+      document.querySelectorAll("#filters button").forEach(b => b.classList.remove("active"));
+      e.target.classList.add("active");
+      currentFilter = e.target.dataset.filter;
+      renderGallery();
+      renderTable();
+    });
+
+    const dropzone = document.getElementById("dropzone");
+    const fileInput = document.getElementById("fileInput");
+    ["dragenter", "dragover"].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.add("drag"); }));
+    ["dragleave", "drop"].forEach(ev => dropzone.addEventListener(ev, e => { e.preventDefault(); dropzone.classList.remove("drag"); }));
+    dropzone.addEventListener("drop", e => processFile(e.dataTransfer.files[0]));
+    fileInput.addEventListener("change", e => processFile(e.target.files[0]));
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      const a = document.createElement("a");
+      a.download = "monedas_anotadas.png";
+      a.href = document.getElementById("uploadCanvas").toDataURL("image/png");
+      a.click();
+    });
+
+    function processFile(file) {
+      if (!file) return;
+      const img = new Image();
+      img.onload = () => analyzeImage(img);
+      img.src = URL.createObjectURL(file);
+    }
+
+    function analyzeImage(img) {
+      const canvas = document.getElementById("uploadCanvas");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      const scale = Math.min(1, 900 / img.width, 620 / img.height);
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const detections = detectCoinsJS(image, canvas.width, canvas.height);
+      ctx.putImageData(image, 0, 0);
+      let total = 0;
+      detections.forEach(d => {
+        total += d.value;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+        ctx.strokeStyle = "#e0b84e";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.fillStyle = "#ff5c73";
+        ctx.fillRect(d.x - 2, d.y - 2, 4, 4);
+        ctx.fillStyle = "#ffe08a";
+        ctx.font = "14px Space Mono";
+        ctx.fillText(`${d.label} S/${d.value.toFixed(2)}`, Math.max(8, d.x - d.r), Math.max(18, d.y - d.r - 8));
+      });
+      animateNumber(document.getElementById("uploadTotal"), total, v => money(v));
+      document.getElementById("uploadList").innerHTML = detections.map(d => `<span class="coin-pill">${d.label}</span>`).join("") || '<span class="coin-pill">Sin monedas</span>';
+      document.getElementById("uploadHint").textContent = `${detections.length} objeto(s) circular(es) encontrados con umbral + componentes conectados.`;
+    }
+
+    function detectCoinsJS(image, w, h) {
+      const data = image.data;
+      const imgArea = w * h;
+      
+      const gray = new Float32Array(w * h);
+      const hsvData = new Float32Array(w * h * 3);
+      
+      for (let i = 0; i < w * h; i++) {
+        const idx = i * 4;
+        const r = data[idx], g = data[idx+1], b = data[idx+2];
+        const hsv = rgbToHsv(r, g, b);
+        gray[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+        hsvData[i * 3] = hsv.h;
+        hsvData[i * 3 + 1] = hsv.s;
+        hsvData[i * 3 + 2] = hsv.v;
+      }
+      
+      const blueMask = new Uint8Array(w * h);
+      const borderMarginX = w * 0.18;
+      const borderMarginY = h * 0.18;
+      const blueMarkers = [];
+      
+      for (let i = 0; i < w * h; i++) {
+        const hVal = hsvData[i * 3];
+        const sVal = hsvData[i * 3 + 1];
+        const vVal = hsvData[i * 3 + 2];
+        
+        if (hVal >= 100 && hVal <= 130 && sVal >= 100 && vVal >= 50) {
+          blueMask[i] = 1;
+        }
+      }
+      
+      const blueComps = connectedComponents(blueMask, w, h);
+      for (const comp of blueComps) {
+        if (comp.area < 8 || comp.area > 1400) continue;
+        
+        const nearBorder = comp.x < borderMarginX || comp.x > (w - borderMarginX) || 
+                          comp.y < borderMarginY || comp.y > (h - borderMarginY);
+        if (!nearBorder || comp.r < 2.5 || comp.r > 18) continue;
+        
+        blueMarkers.push(comp);
+      }
+      
+      let scaleFactor = null;
+      if (blueMarkers.length > 0) {
+        const diameters = blueMarkers.map(m => m.r * 2).sort((a, b) => a - b);
+        const medianDiameter = diameters[Math.floor(diameters.length / 2)];
+        scaleFactor = 5.0 / medianDiameter;
+      }
+      
+      if (scaleFactor === null) {
+        const diag = Math.sqrt(w * w + h * h);
+        scaleFactor = 22.4 / (diag * 0.08);
+      }
+      
+      const candidates = [];
+      
+      const satMask = new Uint8Array(w * h);
+      const darkMask = new Uint8Array(w * h);
+      for (let i = 0; i < w * h; i++) {
+        satMask[i] = hsvData[i * 3 + 1] > 35 ? 1 : 0;
+        darkMask[i] = gray[i] < 170 ? 1 : 0;
+      }
+      
+      const colorMask = new Uint8Array(w * h);
+      for (let i = 0; i < w * h; i++) {
+        if (satMask[i] && darkMask[i] && !blueMask[i]) colorMask[i] = 1;
+      }
+      
+      const colorComps = connectedComponents(colorMask, w, h);
+      for (const comp of colorComps) {
+        if (comp.area < imgArea * 0.0005 || comp.area > imgArea * 0.12) continue;
+        if (comp.circularity < 0.55) continue;
+        const minR = max(12, Math.floor(min(w, h) * 0.015));
+        const maxR = min(120, Math.floor(min(w, h) * 0.18));
+        if (comp.r < minR || comp.r > maxR) continue;
+        candidates.push({ ...comp, score: Math.max(comp.circularity, 1.0), method: "color" });
+      }
+      
+      candidates.sort((a, b) => b.score - a.score);
+      
+      const merged = [];
+      for (const cand of candidates) {
+        let duplicate = false;
+        for (const kept of merged) {
+          const dist = Math.hypot(cand.x - kept.x, cand.y - kept.y);
+          if (dist < Math.max(kept.r, cand.r) * 0.65) {
+            duplicate = true;
+            if (cand.score > kept.score) Object.assign(kept, cand);
+            break;
+          }
+        }
+        if (!duplicate) merged.push({ ...cand });
+      }
+      
+      const filtered = merged.filter(cand => {
+        for (const m of blueMarkers) {
+          const dist = Math.hypot(cand.x - m.x, cand.y - m.y);
+          if (dist < Math.max(cand.r, m.r) * 1.3) return false;
+        }
+        return true;
+      });
+      
+      const finalDetections = [];
+      
+      for (const cand of filtered) {
+        const diameterMM = cand.r * 2 * scaleFactor;
+        
+        if (diameterMM < 12 || diameterMM > 32) continue;
+        
+        let hSum = 0, sSum = 0, n = 0;
+        const rInner = Math.floor(cand.r * 0.7);
+        const x1 = Math.max(0, Math.floor(cand.x - rInner));
+        const x2 = Math.min(w - 1, Math.ceil(cand.x + rInner));
+        const y1 = Math.max(0, Math.floor(cand.y - rInner));
+        const y2 = Math.min(h - 1, Math.ceil(cand.y + rInner));
+        
+        for (let yy = y1; yy <= y2; yy += 2) {
+          for (let xx = x1; xx <= x2; xx += 2) {
+            const dist = Math.sqrt((xx - cand.x) ** 2 + (yy - cand.y) ** 2);
+            if (dist > rInner) continue;
+            const idx = yy * w + xx;
+            hSum += hsvData[idx * 3];
+            sSum += hsvData[idx * 3 + 1];
+            n++;
+          }
+        }
+        
+        const hue = n ? hSum / n : 0;
+        const sat = n ? sSum / n : 0;
+        
+        let label, value;
+        
+        if (diameterMM < 17.0) {
+          value = 0.10; label = "10 céntimos";
+        } else if (diameterMM < 21.0) {
+          if (hue > 12 && sat > 70) {
+            value = 0.50; label = "50 céntimos";
+          } else {
+            value = 2.00; label = "2 soles";
+          }
+        } else if (diameterMM < 23.0) {
+          if (sat > 60) { value = 1.00; label = "1 sol"; }
+          else { value = 2.00; label = "2 soles"; }
+        } else if (diameterMM < 25.5) {
+          if (hue > 12 && sat > 50) { value = 5.00; label = "5 soles"; }
+          else { value = 1.00; label = "1 sol"; }
+        } else {
+          if (sat < 50) { value = 1.00; label = "1 sol"; }
+          else { value = 5.00; label = "5 soles"; }
+        }
+        
+        finalDetections.push({
+          x: cand.x,
+          y: cand.y,
+          r: cand.r,
+          label,
+          value,
+          dmm: diameterMM,
+          hue,
+          sat
+        });
+      }
+      
+      finalDetections.sort((a, b) => b.r - a.r);
+      const keep = [];
+      for (const c of finalDetections) {
+        let overlap = false;
+        for (const k of keep) {
+          const dist = Math.hypot(c.x - k.x, c.y - k.y);
+          if (dist < (c.r + k.r) * 0.65) {
+            overlap = true;
+            break;
+          }
+        }
+        if (!overlap) keep.push(c);
+      }
+      
+      return keep.slice(0, 30);
+    }
+    
+    function max(a, b) { return a > b ? a : b; }
+    function min(a, b) { return a < b ? a : b; }
+
+    function connectedComponents(mask, w, h) {
+      const seen = new Uint8Array(w * h);
+      const comps = [];
+      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = y * w + x;
+          if (!mask[idx] || seen[idx]) continue;
+          
+          let area = 0, sx = 0, sy = 0;
+          let minX = x, maxX = x, minY = y, maxY = y;
+          const qx = [x], qy = [y];
+          seen[idx] = 1;
+          
+          while (qx.length > 0) {
+            const cx = qx.pop();
+            const cy = qy.pop();
+            const ci = cy * w + cx;
+            
+            area++;
+            sx += cx;
+            sy += cy;
+            minX = Math.min(minX, cx);
+            maxX = Math.max(maxX, cx);
+            minY = Math.min(minY, cy);
+            maxY = Math.max(maxY, cy);
+            
+            for (const [dx, dy] of dirs) {
+              const nx = cx + dx;
+              const ny = cy + dy;
+              const ni = ny * w + nx;
+              
+              if (nx >= 0 && nx < w && ny >= 0 && ny < h && mask[ni] && !seen[ni]) {
+                seen[ni] = 1;
+                qx.push(nx);
+                qy.push(ny);
+              }
+            }
+          }
+          
+          const bw = maxX - minX + 1;
+          const bh = maxY - minY + 1;
+          const r = (bw + bh) / 4;
+          const circleArea = Math.PI * r * r;
+          const circularity = circleArea > 0 ? Math.min(area / circleArea, circleArea / area) : 0;
+          
+          comps.push({
+            x: sx / area,
+            y: sy / area,
+            r,
+            area,
+            circularity
+          });
+        }
+      }
+      
+      return comps;
+    }
+
+    function rgbToHsv(r, g, b) {
+      r /= 255; g /= 255; b /= 255;
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const d = max - min;
+      
+      let h = 0;
+      if (d !== 0) {
+        if (max === r) {
+          h = 60 * (((g - b) / d) % 6);
+        } else if (max === g) {
+          h = 60 * ((b - r) / d + 2);
+        } else {
+          h = 60 * ((r - g) / d + 4);
+        }
+      }
+      if (h < 0) h += 360;
+      
+      const s = max === 0 ? 0 : (d / max) * 255;
+      const v = max * 255;
+      
+      return { h: h / 2, s, v };
+    }
+
+    loadResults();
+
+    const zoomModal = document.getElementById("zoomModal");
+    const zoomImage = document.getElementById("zoomImage");
+    document.getElementById("resultsBody").addEventListener("click", e => {
+      if (e.target.classList.contains("mini")) {
+        zoomImage.src = e.target.src;
+        zoomModal.classList.add("active");
+      }
+    });
+    zoomModal.addEventListener("click", () => zoomModal.classList.remove("active"));
+  </script>
+</body>
+</html>
